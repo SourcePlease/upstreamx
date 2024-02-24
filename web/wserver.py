@@ -2,7 +2,11 @@ from logging import getLogger, FileHandler, StreamHandler, INFO, basicConfig
 from time import sleep
 from qbittorrentapi import NotFound404Error, Client as qbClient
 from aria2p import API as ariaAPI, Client as ariaClient
-from flask import Flask, request
+from flask import Flask, request, jsonify
+from time import time
+from psutil import boot_time, disk_usage, net_io_counters
+from subprocess import check_output
+from os import path as ospath
 
 from web.nodes import make_tree
 
@@ -778,6 +782,29 @@ def set_priority(id_):
             LOGGER.info(f"Verification Failed! Report! GID: {id_}")
     return list_torrent_contents(id_)
 
+botStartTime = time()
+if ospath.exists('.git'):
+    commit_date = check_output(["git log -1 --date=format:'%y/%m/%d %H:%M' --pretty=format:'%cd'"], shell=True).decode()
+else:
+    commit_date = 'No UPSTREAM_REPO'
+
+@app.route('/status', methods=['GET'])
+def status():
+    bot_uptime = time() - botStartTime
+    uptime = time() - boot_time()
+    sent = net_io_counters().bytes_sent
+    recv = net_io_counters().bytes_recv
+    return jsonify({
+        'commit_date': commit_date,
+        'uptime': uptime,
+        'on_time': bot_uptime,
+        'free_disk': disk_usage('.').free,
+        'total_disk': disk_usage('.').total,
+        'network': {
+            'sent': sent,
+            'recv': recv,
+        },
+    })
 
 @app.route('/')
 def homepage():
